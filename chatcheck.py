@@ -4,29 +4,28 @@
 Signs in as two seeded accounts, mints a ClientId for each (ADR 18), opens both
 sockets and checks that what one sends arrives at the other.
 
-Usage:  python3 chatcheck.py [domain] [loopback-ip] [chat-id]
+It talks to the Domain the way the browser does, at http://localhost:800N.
+
+Usage:  python3 chatcheck.py [domain] [chat-id]
 """
-import asyncio, json, ssl, socket, sys, urllib.request
+import asyncio, json, sys, urllib.request
+
+import websockets
+
+# The host port of each Domain with chat (docker-compose.yml).
+PORTS = {"103mail.com": 8001, "example.com": 8002}
 
 DOMAIN = sys.argv[1] if len(sys.argv) > 1 else "example.com"
-IP     = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.2"
-CHAT   = sys.argv[3] if len(sys.argv) > 3 else "2"
-HOST   = f"webmail.{DOMAIN}"
-
-ctx = ssl.create_default_context(cafile="certs/webmail-local-ca.crt")
-# Resolve the Federation hostname to its loopback address, so this runs whether
-# or not /etc/hosts has the entries the browser needs.
-_gai = socket.getaddrinfo
-socket.getaddrinfo = lambda h, *a, **k: _gai(IP, *a, **k) if h == HOST else _gai(h, *a, **k)
-import websockets
+CHAT   = sys.argv[2] if len(sys.argv) > 2 else "2"
+HOST   = f"localhost:{PORTS[DOMAIN]}"
 
 
 def post(path, body, tok=None):
     head = {"Content-Type": "application/json"}
     if tok:
         head["Authorization"] = "Bearer " + tok
-    req = urllib.request.Request(f"https://{HOST}{path}", json.dumps(body).encode(), head, method="POST")
-    return json.load(urllib.request.urlopen(req, context=ctx))
+    req = urllib.request.Request(f"http://{HOST}{path}", json.dumps(body).encode(), head, method="POST")
+    return json.load(urllib.request.urlopen(req))
 
 
 async def expect(ws, kind, timeout=5):
@@ -45,8 +44,8 @@ async def main():
     ca = post("/api/v1/chat/session", {}, ta)["clientId"]
     cb = post("/api/v1/chat/session", {}, tb)["clientId"]
 
-    async with websockets.connect(f"wss://{HOST}/ws/{ca}", ssl=ctx) as wa, \
-               websockets.connect(f"wss://{HOST}/ws/{cb}", ssl=ctx) as wb:
+    async with websockets.connect(f"ws://{HOST}/ws/{ca}") as wa, \
+               websockets.connect(f"ws://{HOST}/ws/{cb}") as wb:
         for ws, who in ((wa, a), (wb, b)):
             await ws.send(json.dumps({"type": "hello"}))
             print(f"ready    {who} userId={(await expect(ws, 'ready'))['userId']}")

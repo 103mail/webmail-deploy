@@ -1,4 +1,4 @@
-module github.com/mevdschee/webmail-deploy
+module github.com/103mail/webmail-deploy
 
 go 1.25.0
 

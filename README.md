@@ -274,6 +274,18 @@ To sign in with an API call rather than the browser:
       -H 'Content-Type: application/json' \
       -d '{"email":"bob@example.com","password":"password"}'
 
+## Rebuilding on change
+
+    ./watch.sh
+
+brings the stack up and then watches `../webmail-server` and
+`../webmail-client`. A change to either rebuilds that image and recreates
+every container that runs it, so all Domains stay on the same build and keep
+their databases. A rebuild takes about 20 seconds for the server and 15 for
+the client. It is not hot module replacement: reload the tab after a client
+change. A build that fails leaves the previous containers running. It needs
+`inotifywait` (`apt install inotify-tools`).
+
 ## Running the client against a bare server instead
 
 For frontend work, `npm run dev` in `../webmail-client` is faster than a

@@ -115,6 +115,7 @@ services:
       WEBMAIL_DOMAIN: 103mail.com
     volumes:
       - ./nginx/webmail.conf.template:/etc/nginx/templates/webmail.conf.template:ro
+      - ./nginx/bundle.conf:/etc/nginx/bundle.conf:ro
       - ./domain/103mail.com:/etc/nginx/domain:ro
       - ./certs:/etc/nginx/certs:ro
     ports:
@@ -219,6 +220,7 @@ services:
       WEBMAIL_DOMAIN: example.com
     volumes:
       - ./nginx/webmail.conf.template:/etc/nginx/templates/webmail.conf.template:ro
+      - ./nginx/bundle.conf:/etc/nginx/bundle.conf:ro
       - ./domain/example.com:/etc/nginx/domain:ro
       - ./certs:/etc/nginx/certs:ro
     ports:
@@ -324,6 +326,7 @@ services:
       WEBMAIL_DOMAIN: mail.acme.test
     volumes:
       - ./nginx/webmail.conf.template:/etc/nginx/templates/webmail.conf.template:ro
+      - ./nginx/bundle.conf:/etc/nginx/bundle.conf:ro
       - ./domain/mail.acme.test:/etc/nginx/domain:ro
       - ./certs:/etc/nginx/certs:ro
     ports:
@@ -403,6 +406,7 @@ services:
       WEBMAIL_DOMAIN: acme.test
     volumes:
       - ./nginx/webmail.conf.template:/etc/nginx/templates/webmail.conf.template:ro
+      - ./nginx/bundle.conf:/etc/nginx/bundle.conf:ro
       - ./domain/acme.test:/etc/nginx/domain:ro
       - ./certs:/etc/nginx/certs:ro
     ports:
@@ -477,6 +481,7 @@ services:
       WEBMAIL_DOMAIN: peer.test
     volumes:
       - ./nginx/webmail.conf.template:/etc/nginx/templates/webmail.conf.template:ro
+      - ./nginx/bundle.conf:/etc/nginx/bundle.conf:ro
       - ./domain/peer.test:/etc/nginx/domain:ro
       - ./certs:/etc/nginx/certs:ro
     depends_on:

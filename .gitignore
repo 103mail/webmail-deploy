@@ -17,3 +17,6 @@ clock/
 # allowlist, a smaller attachment cap, a rotated key), mounted through
 # FEDERATION_CONFIG_<DOMAIN>. The harness removes it after the story.
 domain/*/federation.e2e.json
+
+# The server binaries docker-compose.dev.yml runs, built on the host.
+bin/

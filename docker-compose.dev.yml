@@ -1,0 +1,60 @@
+# Development on top of docker-compose.yml: no image rebuilds. The client comes
+# from the Vite dev server with hot module replacement, and the API servers and
+# workers run binaries built on the host, restarted when they change.
+#
+#   export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
+#   docker compose watch
+#
+# and, in ../webmail-server, after a change:
+#
+#   make deploy
+#
+# which is a cgo-free go build into bin/, so the binaries run on Alpine. Every Domain runs the same
+# bin/, and each container restarts on its own when it changes.
+
+x-dev-api: &dev-api
+  volumes:
+    - ./bin:/usr/local/bin:ro
+  develop:
+    watch:
+      - path: ./bin
+        action: restart
+
+x-dev-web: &dev-web
+  volumes:
+    - ./nginx/bundle.vite.conf:/etc/nginx/bundle.conf:ro
+  depends_on:
+    vite:
+      condition: service_started
+
+services:
+  api-103mail: *dev-api
+  worker-103mail: *dev-api
+  api-example: *dev-api
+  worker-example: *dev-api
+  api-acme: *dev-api
+  worker-acme: *dev-api
+  api-parent: *dev-api
+  worker-parent: *dev-api
+  api-peer: *dev-api
+
+  web-103mail: *dev-web
+  web-example: *dev-web
+  web-acme: *dev-web
+  web-parent: *dev-web
+  web-peer: *dev-web
+
+  # One dev server for every Domain, reached by each web container on the
+  # federation network. It uses the host's node_modules, so run `npm install`
+  # in ../webmail-client first. Debian rather than Alpine, because that is the
+  # native binding npm installed on the host.
+  vite:
+    image: node:24-bookworm-slim
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /src
+    command: ["npx", "vite", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
+    volumes:
+      - ../webmail-client:/src
+    networks:
+      federation:
+        aliases: [vite]

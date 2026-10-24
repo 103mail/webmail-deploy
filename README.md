@@ -274,17 +274,28 @@ To sign in with an API call rather than the browser:
       -H 'Content-Type: application/json' \
       -d '{"email":"bob@example.com","password":"password"}'
 
-## Rebuilding on change
+## Developing against the stack
 
-    ./watch.sh
+`docker-compose.dev.yml` swaps the images' builds for the working trees, so a
+change needs no image rebuild:
 
-brings the stack up and then watches `../webmail-server` and
-`../webmail-client`. A change to either rebuilds that image and recreates
-every container that runs it, so all Domains stay on the same build and keep
-their databases. A rebuild takes about 20 seconds for the server and 15 for
-the client. It is not hot module replacement: reload the tab after a client
-change. A build that fails leaves the previous containers running. It needs
-`inotifywait` (`apt install inotify-tools`).
+    export COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
+    docker compose watch
+
+Every web container then proxies the client to one Vite dev server running
+`../webmail-client`, so a client change shows up through hot module
+replacement, on the same origin and with the same `/config.json` and API as
+before. It uses the host's `node_modules`, so run `npm install` there first.
+
+The API servers and workers run the binaries in `bin/`, which you build on the
+host. In `../webmail-server`:
+
+    make deploy
+
+which is a cgo-free `go build` into `bin/`, so the binaries run on Alpine.
+`docker compose watch` restarts every API and worker when `bin/` changes. Ctrl-c stops the watching and leaves
+the stack running. Unset `COMPOSE_FILE` and `docker compose up -d` to go back
+to the images.
 
 ## Running the client against a bare server instead
 

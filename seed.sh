@@ -21,6 +21,9 @@ LOGIN=${2:?login}
 NAME=${3:?display name}
 ALIAS=${4:?alias email}
 
+# A meeting's federation id, which is a UUID (RFC 15.2).
+uuid() { cat /proc/sys/kernel/random/uuid; }
+
 # bcrypt of "password". Every account in the local development stack uses it,
 # matching what ../webmail-legacy/syncdata.sh does to a synced database.
 HASH='$2y$10$jO3R170QUVr5pj.eMO1bZuduB8SoSAuIpC1jrmtzwnh6vEWr.bqpW'
@@ -114,17 +117,27 @@ INSERT INTO \`message\` (\`id\`, \`customer_id\`, \`thread_id\`, \`g_message_id\
 -- The all day meeting is deliberately not converted. ListMeetings buckets by
 -- UTC day, so midnight to midnight UTC lands on exactly one day, while the
 -- same span shifted by an offset would straddle two and draw the band twice.
-INSERT INTO \`g_meeting\` (\`id\`, \`title\`, \`start_time\`, \`end_time\`, \`time_zone\`, \`is_all_day\`, \`organizer_email\`, \`organizer_name\`, \`description\`) VALUES
-  (1, 'Standup', '$STANDUP_START', '$STANDUP_END',
-   'Europe/Amsterdam', 0, '$ALIAS', '$NAME', 'Daily standup'),
-  (2, 'Design review', '$REVIEW_START', '$REVIEW_END',
-   'Europe/Amsterdam', 0, '$PEER_EMAIL', '$PEER_NAME', 'Walk through the federation design'),
-  (3, 'Company day', datetime('now', 'start of day', '+3 days'), datetime('now', 'start of day', '+4 days'),
-   'Europe/Amsterdam', 1, '$ALIAS', '$NAME', 'All day, no agenda');
-INSERT INTO \`meeting\` (\`id\`, \`customer_id\`, \`g_meeting_id\`, \`mailbox_id\`, \`will_attend\`) VALUES
-  (1, 1, 1, 1, 'yes'), (2, 1, 2, 1, 'maybe'), (3, 1, 3, 1, NULL);
-INSERT INTO \`g_attendee\` (\`id\`, \`g_meeting_id\`, \`email\`, \`will_attend\`) VALUES
-  (1, 1, '$ALIAS', 'yes'), (2, 2, '$ALIAS', 'maybe'), (3, 2, '$PEER_EMAIL', 'yes');
+--
+-- Each meeting is one revision, as the server stores them (ADR 22). The
+-- organizer's answer is implied; the others are rows of their own.
+INSERT INTO \`g_meeting\` (\`id\`, \`federation_id\`, \`organizer_email\`, \`organizer_name\`) VALUES
+  (1, '$(uuid)', '$ALIAS', '$NAME'),
+  (2, '$(uuid)', '$PEER_EMAIL', '$PEER_NAME'),
+  (3, '$(uuid)', '$ALIAS', '$NAME');
+INSERT INTO \`g_meeting_revision\` (\`id\`, \`g_meeting_id\`, \`revision\`, \`status\`, \`title\`, \`description\`, \`start_time\`, \`end_time\`, \`time_zone\`, \`is_all_day\`, \`first_start\`, \`last_end\`, \`changed_at\`) VALUES
+  (1, 1, 1, 'confirmed', 'Standup', 'Daily standup', '$STANDUP_START', '$STANDUP_END',
+   'Europe/Amsterdam', 0, '$STANDUP_START', '$STANDUP_END', datetime('now', '-3 days')),
+  (2, 2, 1, 'confirmed', 'Design review', 'Walk through the federation design', '$REVIEW_START', '$REVIEW_END',
+   'Europe/Amsterdam', 0, '$REVIEW_START', '$REVIEW_END', datetime('now', '-3 days')),
+  (3, 3, 1, 'confirmed', 'Company day', 'All day, no agenda',
+   datetime('now', 'start of day', '+3 days'), datetime('now', 'start of day', '+4 days'), 'Europe/Amsterdam', 1,
+   datetime('now', 'start of day', '+3 days'), datetime('now', 'start of day', '+4 days'), datetime('now', '-3 days'));
+INSERT INTO \`g_meeting_attendee\` (\`id\`, \`g_meeting_revision_id\`, \`email\`) VALUES
+  (1, 1, '$ALIAS'), (2, 2, '$PEER_EMAIL'), (3, 2, '$ALIAS'), (4, 3, '$ALIAS');
+INSERT INTO \`g_meeting_rsvp\` (\`id\`, \`g_meeting_id\`, \`email\`, \`will_attend\`, \`revision\`, \`answered_at\`) VALUES
+  (1, 2, '$ALIAS', 'maybe', 1, datetime('now', '-2 days'));
+INSERT INTO \`meeting\` (\`id\`, \`customer_id\`, \`g_meeting_id\`, \`mailbox_id\`, \`seen_revision\`) VALUES
+  (1, 1, 1, 1, 1), (2, 1, 2, 1, 1), (3, 1, 3, 1, 1);
 
 -- ── Chat ────────────────────────────────────────────────────────────────────
 INSERT INTO \`g_chat\` (\`id\`, \`type\`, \`name\`, \`created_by_email\`) VALUES
